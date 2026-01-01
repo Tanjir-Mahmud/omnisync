@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Enums removed for SQLite compatibility. Using Strings.
+
+model Location {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   @default("STORE") // "WAREHOUSE" | "STORE"
+  address   String?
+  latitude  Float?
+  longitude Float?
+  userId    String   // Owner
+  
+  stockLevels StockLevel[]
+  orders      Order[]       @relation("FulfillmentLocation")
+  transfersFrom Transfer[]  @relation("TransferFrom")
+  transfersTo   Transfer[]  @relation("TransferTo")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  sku         String   @unique
+  name        String
+  description String?
+  price       Float
+  minStockLevel Int    @default(5)
+  userId      String   // Owner
+  
+  stockLevels StockLevel[]
+  orderItems  OrderItem[]
+  transfers   Transfer[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model StockLevel {
+  id         String   @id @default(uuid())
+  productId  String
+  locationId String
+  quantity   Int      @default(0)
+  
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locationId])
+}
+
+model Order {
+  id                    String      @id @default(uuid())
+  customerName          String
+  customerAddress       String?
+  customerLat           Float?
+  customerLng           Float?
+  status                String      @default("PENDING") // "PENDING" | "FULFILLED" | "CANCELLED"
+  fulfillmentLocationId String?
+  totalAmount           Float       @default(0)
+  userId                String      // Owner
+  
+  fulfillmentLocation   Location?   @relation("FulfillmentLocation", fields: [fulfillmentLocationId], references: [id])
+  items                 OrderItem[]
+  
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Transfer {
+  id             String   @id @default(uuid())
+  productId      String
+  fromLocationId String
+  toLocationId   String
+  quantity       Int
+  status         String   @default("PENDING") // "PENDING" | "APPROVED" | "COMPLETED" | "REJECTED"
+  userId         String   // Owner
+  
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fromLocation   Location @relation("TransferFrom", fields: [fromLocationId], references: [id])
+  toLocation     Location @relation("TransferTo", fields: [toLocationId], references: [id])
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entityId  String?
+  details   String?
+  userId    String?  // Copied from session
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed
+  name      String?
+  role      String   @default("USER") // "ADMIN" | "USER"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
