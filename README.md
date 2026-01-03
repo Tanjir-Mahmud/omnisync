@@ -1,4 +1,4 @@
-# OmniSync Pro
+# OmniSync 
 
 ![OmniSync Pro Logo](./public/brand-logo.png)
 
